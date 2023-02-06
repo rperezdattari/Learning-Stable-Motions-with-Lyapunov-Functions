@@ -10,57 +10,78 @@ __status__ 		= "Testing"
 
 import os
 import sys
-import h5py
-import time
-import argparse
-import logging
+# import argparse
+# import logging
 import numpy as np
 import scipy.io as sio
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 from os.path import dirname, abspath
 lyap = dirname(dirname(abspath(__file__)))
 sys.path.append(lyap)
 
-from gmm.gmm import GMM
-from gmm.gmm_utils import GMR
 from cost.cost import Cost
-from config import Vxf0, options, opt_exec
-from utils.utils import guess_init_lyap, BundleType
-from utils.data_prepro import format_data
+from config import Vxf0, options
+from utils.utils import guess_init_lyap
 from stabilizer.ds_stab import dsStabilizer
+from gmm.gmm import GMM
 
-logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
-logger = logging.getLogger(__name__)
+# logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
+# logger = logging.getLogger(__name__)
+#
+# parser = argparse.ArgumentParser(description='torobo_parser')
+# parser.add_argument('--silent', '-si', type=int, default=0, help='max num iterations' )
+# parser.add_argument('--data_type', '-dt', type=str, default='pipe_et_trumpet', help='pipe_et_trumpet | h5_data' )
+# args = parser.parse_args()
+#
+# print(args)
 
-parser = argparse.ArgumentParser(description='torobo_parser')
-parser.add_argument('--silent', '-si', type=int, default=0, help='max num iterations' )
-parser.add_argument('--data_type', '-dt', type=str, default='pipe_et_trumpet', help='pipe_et_trumpet | h5_data' )
-args = parser.parse_args()
 
-print(args)
-
-
-def load_saved_mat_file(x, **kwargs):
+def load_gmm_parameters(x):
     matFile = sio.loadmat(x)
 
-    #print(matFile)
-    data = matFile['Data']
-    demoIdx = matFile['demoIndices']
-
-    if ('Priors_EM' or 'Mu_EM' or 'Sigma_EM') in kwargs:
-        Priors_EM, Mu_EM, Sigma_EM = matFile['Priors_EM'], matFile['Mu_EM'], matFile['Sigma_EM']
-        return data, demoIdx, Priors_EM, Mu_EM, Sigma_EM
-    else:
-        return data, demoIdx
+    Priors_EM, Mu_EM, Sigma_EM = matFile['Priors_EM'], matFile['Mu_EM'], matFile['Sigma_EM']
+    return Priors_EM, Mu_EM, Sigma_EM
 
 
-def main(Vxf0, urdf, options):
+def load_saved_mat_file(data_name):
+    """
+        Loads a matlab file from a subdirectory.
+
+        Inputs:
+            x: path to data on HDD
+
+
+       Copyright (c) Lekan Molux. https://scriptedonachip.com
+       2021.
+    """
+
+    # matFile = sio.loadmat(x)
+
+    # data = matFile['Data']
+    dataset_path = 'data/lasa_handwriting_dataset'
+    data = sio.loadmat(os.path.join(dataset_path, data_name + '.mat'))
+    dataset = data['demos']
+    num_demos = int(dataset.shape[1])
+    demo_length = 1000
+    demoIdx = []
+    demonstrations = np.empty([4, num_demos * demo_length])
+    for i in range(num_demos):
+        pos = dataset[0][i]['pos'][0][0]
+        vel = dataset[0][i]['vel'][0][0]
+        demonstrations[:2, i * demo_length:(i + 1) * demo_length] = pos
+        demonstrations[2:, i * demo_length:(i + 1) * demo_length] = vel
+
+        demoIdx.append(i * demo_length)
+
+    return demonstrations, np.array(demoIdx)
+
+
+def main(Vxf0, options):
     modelNames = ['w.mat', 'Sshape.mat']  # Two example models provided by Khansari
     modelNumber = 0  # could be zero or one depending on the experiment the user is running
-
-    data, demoIdx = load_saved_mat_file(lyap + '/' + 'example_models/' + modelNames[modelNumber])
+    data_name = 'Sshape'
+    data, demoIdx = load_saved_mat_file('Sshape')
 
     Vxf0['d'] = int(data.shape[0]/2)
     Vxf0.update(Vxf0)
@@ -83,7 +104,7 @@ def main(Vxf0, urdf, options):
             break
 
     # Plot the result of V
-    h1 = plt.plot(data[0, :], data[1, :], 'r.', label='demonstrations')
+    #h1 = plt.plot(data[0, :], data[1, :], 'r.', label='demonstrations')
 
     extra = 30
 
@@ -95,7 +116,7 @@ def main(Vxf0, urdf, options):
     plt.title('Energy Levels of the learned Lyapunov Functions', fontsize=12)
     plt.xlabel('x (mm)', fontsize=15)
     plt.ylabel('y (mm)', fontsize=15)
-    h = [h1, h2, h3]
+    #h = [h1, h2, h3]
 
     # Run DS
     opt_sim = dict()
@@ -104,11 +125,17 @@ def main(Vxf0, urdf, options):
     opt_sim['tol'] = 1
 
     d = data.shape[0]/2  # dimension of data
-    x0_all = data[:int(d), demoIdx[0, :-1] - 1]  # finding initial points of all demonstrations
+    x0_all = data[:int(d), demoIdx]  # finding initial points of all demonstrations
 
-    data, demoIdx, Priors_EM, Mu_EM, Sigma_EM = load_saved_mat_file(lyap + '/' + 'example_models/' +
-                                     modelNames[modelNumber], Priors_EM=None,
-                                     Mu_EM=None, Sigma_EM=None)
+    # get gmm params
+    gmm = GMM(num_clusters=options['num_clusters'])
+    gmm.update(data.T, K=options['num_clusters'], max_iterations=100)
+    mu, sigma, priors = gmm.mu, gmm.sigma, gmm.logmass
+    mu = mu.T
+    sigma = sigma.T
+    priors = priors.T
+
+    #Priors_EM, Mu_EM, Sigma_EM = load_gmm_parameters(lyap + '/' + 'example_models/' + modelNames[modelNumber])
 
     # rho0 and kappa0 impose minimum acceptable rate of decrease in the energy
     # function during the motion. Refer to page 8 of the paper for more information
@@ -118,7 +145,7 @@ def main(Vxf0, urdf, options):
     inp = list(range(Vxf['d']))
     output = np.arange(Vxf['d'], 2 * Vxf['d'])
 
-    xd, _ = dsStabilizer(x0_all, Vxf, rho0, kappa0, Priors_EM, Mu_EM, Sigma_EM, inp, output, cost)
+    xd, _ = dsStabilizer(x0_all, Vxf, rho0, kappa0, priors, mu, sigma, inp, output, cost)
 
     # Evalute DS
     xT = np.array([])
@@ -126,11 +153,9 @@ def main(Vxf0, urdf, options):
     if not xT:
         xT = np.zeros((d, 1))
 
-    # initialization
+    # Simulate trajectories
     nbSPoint = x0_all.shape[1]
     x = []
-    x0_all[0, 1] = -180  # modify starting point a bit to see performance in further regions
-    x0_all[1, 1] = -130
     x.append(x0_all)
     xd = []
     if xT.shape == x0_all.shape:
@@ -141,20 +166,24 @@ def main(Vxf0, urdf, options):
     t = 0  # starting time
     dt = 0.01
     for i in range(4000):
-        xd.append(dsStabilizer(x[i] - XT, Vxf, rho0, kappa0, Priors_EM, Mu_EM, Sigma_EM, inp, output, cost)[0])
+        xd.append(dsStabilizer(x[i] - XT, Vxf, rho0, kappa0, priors, mu, sigma, inp, output, cost)[0])
 
         x.append(x[i] + xd[i] * dt)
         t += dt
 
-    for i in range(nbSPoint):
-        # Choose one trajectory
-        x = np.reshape(x, [len(x), d, nbSPoint])
-        x0 = x[:, :, i]
-        if i == 0:
-            plt.plot(x0[:, 0], x0[:, 1], linestyle='--', label='DS eval', color='blue')
-        else:
-            plt.plot(x0[:, 0], x0[:, 1], linestyle='--', color='blue')
+    # Plot simulated data
+    x = np.array(x)
+    plt.plot(x[:, 0, :], x[:, 1, :], color='red', linewidth=4, zorder=10)
+
+
+    # Plot demonstrations
+    demo_length = 1000
+    for i in range(int(data.shape[1] / demo_length)):
+        plt.plot(data[0, i * demo_length:(i + 1) * demo_length], data[1, i * demo_length:(i + 1) * demo_length],
+                 color='blue', linewidth=4, zorder=5)
+
     plt.legend()
+    plt.savefig('%s_vector_field.pdf' % data_name, dpi=300)
     plt.show()
 
 
@@ -163,9 +192,8 @@ if __name__ == '__main__':
         # options = BundleType(options)
         # A set of options that will be passed to the solver
         options['disp'] = 0
-        options['args'] = args
+        #options['args'] = args
 
         options.update()
 
-        urdf = []
-        main(Vxf0, urdf, options)
+        main(Vxf0, options)

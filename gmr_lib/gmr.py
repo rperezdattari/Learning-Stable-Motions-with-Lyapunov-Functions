@@ -2,6 +2,7 @@ import numpy as np
 from .gauss_pdf import gaussPDF
 from clfm_lib.learn_energy import matlength
 
+
 def GMR(Priors, Mu, Sigma, x, inp, out, nargout=3):
     """
      This function performs Gaussian Mixture Regression (GMR), using the
@@ -10,7 +11,6 @@ def GMR(Priors, Mu, Sigma, x, inp, out, nargout=3):
      dimensions. By providing temporal values as inputs, it thus outputs a
      smooth generalized version of the data encoded in GMM, and associated
      constraints expressed by covariance matrices.
-
      Inputs -----------------------------------------------------------------
        o Priors:  1 x K array representing the prior probabilities of the K GMM
                   components.
@@ -27,17 +27,14 @@ def GMR(Priors, Mu, Sigma, x, inp, out, nargout=3):
                   Q dimensions, i.e. expected means.
        o Sigma_y: Q x Q x N array representing the N expected covariance
                   matrices retrieved.
-
      Copyright (c) 2006 Sylvain Calinon, LASA Lab, EPFL, CH-1015 Lausanne,
                    Switzerland, http://lasa.epfl.ch
-
      The program is free for non-commercial academic use.
      Please contact the authors if you are interested in using the
      software for commercial purposes. The software must not be modified or
      distributed without prior permission of the authors.
      Please acknowledge the authors in any academic publications that have
      made use of this code or part of it. Please use this BibTex reference:
-
      @article{Calinon06SMC,
        title="On Learning, Representing and Generalizing a Task in a Humanoid
          Robot",

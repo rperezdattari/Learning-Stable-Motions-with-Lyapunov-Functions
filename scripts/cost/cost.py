@@ -8,7 +8,6 @@ __maintainer__ 	= "Olalekan Ogunmolu"
 __email__ 		= "patlekano@gmail.com"
 __status__ 		= "Testing"
 
-import rospy
 import logging, time
 import numpy as np
 import numpy.random as npr
@@ -18,7 +17,6 @@ from scipy.optimize import minimize, linprog, NonlinearConstraint, BFGS
 from gmm import gmm_2_parameters, parameters_2_gmm, \
                 shape_DS, gmr_lyapunov
 import matplotlib.pyplot as plt
-log_level = rospy.logdebug
 LOGGER = logging.getLogger(__name__)
 
 
@@ -70,7 +68,6 @@ class Cost(object):
         nonl_cons_ineq = NonlinearConstraint(ctr_handle_ineq, -np.inf, 0, jac='3-point', hess=BFGS())
         nonl_cons_eq = NonlinearConstraint(ctr_handle_eq, 0, 0, jac='3-point', hess=BFGS())
 
-        rospy.loginfo('Optimizing the lyapunov function')
         solution = minimize(obj_handle,
                             np.reshape(p0, [len(p0)]),
                             hess=BFGS(),
@@ -155,9 +152,6 @@ class Cost(object):
         # self.success = True
 
         if i:
-            rospy.logerr('Error in P constraints')
-            rospy.logerr('Eigen values of P^k violating constraints at ')
-            rospy.logfatal('{}'.format(c_P[i]))
             self.success = False
         else:
             self.success = True
@@ -168,9 +162,6 @@ class Cost(object):
                 i = np.nonzero(c_Priors < 0)
 
                 if i:
-                    rospy.logerr('Errors in constraints on priors')
-                    rospy.logerr('Values of the priors violates the constraints')
-                    rospy.logfatal('{}'.format(c_Priors[i]))
                     self.success = False
                 else:
                     self.success = True
@@ -178,20 +169,10 @@ class Cost(object):
             if len(c) > L*d+L:
                 c_x_sw = c[L*d+L+1]
                 if c_x_sw <= 0:
-                    rospy.logerr('error in x_sw constraints')
-                    rospy.logefatal('c_x_sw , %f', c_x_sw)
                     self.success = False
                 else:
                     self.success = True
 
-        if self.success:
-            rospy.loginfo('Optimization finished successfully')
-            rospy.loginfo(' ')
-        else:
-            rospy.logwarn('Optimization did not reach optimal point')
-            rospy.logwarn('Some constraints were slightly violated')
-            rospy.logwarn('Rerun the optimization w/diff initial; guesses to handle this issue')
-            rospy.logwarn('increasing the # of P could help')
 
     def computeEnergy(self, X, Xd, Vxf, nargout=2):
         d = X.shape[0]

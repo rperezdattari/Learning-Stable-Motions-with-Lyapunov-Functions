@@ -1,3 +1,4 @@
+
 from __future__ import print_function
 
 __author__ 		= "Olalekan Ogunmolu"
@@ -84,25 +85,25 @@ def dsStabilizer(x, Vxf, rho0, kappa0, Priors_EM, Mu_EM, Sigma_EM, inp, output, 
     u = xd * 0
 
     if np.sum(ind) > 0:
-        lambder = (Vdot[ind] + rho[ind]) / norm_Vx[ind]
+        lambder = (Vdot[ind] + rho[ind]) / (norm_Vx[ind] + 1e-8)
         u[:, ind] = -np.tile(lambder, [d, 1]) * Vx[:, ind]
         xd[:, ind] = xd[:, ind] + u[:, ind]
 
-    if args:
-        dt = args[0]
-        xn = x + np.dot(xd, dt)
-        Vn = cost.computeEnergy(xn, np.array(()), Vxf)
-        ind = Vn >= V
-        i = 0
-
-        while np.any(ind) and i < 10:
-            alpha = V[ind]/Vn[ind]
-            xd[:,ind] = np.tile(alpha, [d, 1]) * xd[:, ind] - \
-                        np.tile(alpha * np.sum(xd[:, ind] * \
-                        Vx[:, ind], axis=0)/norm_Vx[ind], [d, 1])*Vx[:, ind]
-            xn = x + np.dot(xd, dt)
-            Vn = cost.computeEnergy(xn, np.array(()), Vxf)
-            ind = Vn >= V
-            i = i + 1
+    # if args:
+    #     dt = args[0]
+    #     xn = x + np.dot(xd, dt)
+    #     Vn = cost.computeEnergy(xn, np.array(()), Vxf)
+    #     ind = Vn >= V
+    #     i = 0
+    #
+    #     while np.any(ind) and i < 10:
+    #         alpha = V[ind]/Vn[ind]
+    #         xd[:,ind] = np.tile(alpha, [d, 1]) * xd[:, ind] - \
+    #                     np.tile(alpha * np.sum(xd[:, ind] * \
+    #                     Vx[:, ind], axis=0)/norm_Vx[ind], [d, 1])*Vx[:, ind]
+    #         xn = x + np.dot(xd, dt)
+    #         Vn = cost.computeEnergy(xn, np.array(()), Vxf)
+    #         ind = Vn >= V
+    #         i = i + 1
 
     return xd, u
