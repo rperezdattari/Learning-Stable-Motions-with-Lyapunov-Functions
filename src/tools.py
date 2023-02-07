@@ -29,7 +29,7 @@ def load_saved_mat_file(data_name):
     data = sio.loadmat(os.path.join(dataset_path, data_name + '.mat'))
     dataset = data['demos']
     num_demos = int(dataset.shape[1])
-    demo_length = 1000
+    demo_length = dataset[0][0]['pos'][0][0].shape[1]
     demoIdx = []
     demonstrations = np.empty([4, num_demos * demo_length])
     for i in range(num_demos):
@@ -40,11 +40,10 @@ def load_saved_mat_file(data_name):
 
         demoIdx.append(i * demo_length)
 
-    return demonstrations, np.array(demoIdx)
+    return demonstrations, np.array(demoIdx), demo_length
 
 
-def plot_results(data, data_name, demoIdx, dynamical_system, plot_mode, extra=10, simulate_length=1500, n_points=100):
-    demo_length = 1000
+def plot_results(data, data_name, demoIdx, demo_length, dynamical_system, plot_mode, extra=10, simulate_length=1500, n_points=100):
     plt.rcdefaults()
     plt.rcParams.update({"text.usetex": True, "font.family": "Times New Roman", "font.size": 26})
     plt.figure(figsize=(8, 8))
@@ -55,12 +54,6 @@ def plot_results(data, data_name, demoIdx, dynamical_system, plot_mode, extra=10
 
     x_lim = [[np.min(data[0, :]) - extra, np.max(data[0, :]) + extra],
              [np.min(data[1, :]) - extra, np.max(data[1, :]) + extra]]
-
-    # x_lim = [[0, 0], [0, 0]]
-    # x_lim[0][0] = -15.1  # S: -15.1; P:-32.22; DB:-41.03
-    # x_lim[0][1] = 51.4  # S: 51.4; P: 28.51; DB: 24.37
-    # x_lim[1][0] = -7.73  # S: -7.73; P: -28.16; DB: -22.71
-    # x_lim[1][1] = 56  # S: 56; P: 37.43; DB: 9.45
 
     x0_all = data[:2, demoIdx]  # finding initial points of all demonstrations
 

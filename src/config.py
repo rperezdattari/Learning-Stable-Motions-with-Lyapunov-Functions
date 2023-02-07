@@ -8,7 +8,7 @@ general_params = {
 }
 
 lyapunov_learner_params = {
-    'L': 3,  # number of lyapunov function components
+    'L': 2,  # number of lyapunov function components
     'd': 2,
     'w': 1e-4,  # a positive scalar weight regulating the priority between the two objectives of the opitmization. Please refer to the page 7 of the paper for further information.
     'Mu': np.array(()),

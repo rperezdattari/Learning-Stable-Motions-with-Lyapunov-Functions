@@ -1,7 +1,7 @@
 __credits__ = 'Olalekan Ogunmolu, Rodrigo Perez-Dattari (TU Delft), Rachel Thomson (MIT), Jethro Tan (PFN)'
 __license__ = 'MIT'
 
-from lypunov_learner.lyapunov_learner import LyapunovLearner
+from lyapunov_learner.lyapunov_learner import LyapunovLearner
 from config import gmm_params, lyapunov_learner_params, general_params
 from stabilizer.ds_stab import DynamicalSystem
 from gmm.gmm import GMM
@@ -10,7 +10,7 @@ from tools import load_saved_mat_file, plot_results
 
 def main(data_name):
     # Load demonstrations
-    data, demo_idx = load_saved_mat_file(data_name)
+    data, demo_idx, demo_length = load_saved_mat_file(data_name)
 
     # Initialize Lyapunov learner
     lyapunov = LyapunovLearner()
@@ -34,8 +34,8 @@ def main(data_name):
     dynamical_system = DynamicalSystem(V, priors, mu, sigma, lyapunov)
 
     # Plot results
-    plot_results(data, data_name, demo_idx, dynamical_system, plot_mode='velocities')
-    plot_results(data, data_name, demo_idx, dynamical_system, plot_mode='energy_levels')
+    plot_results(data, data_name, demo_idx, demo_length, dynamical_system, plot_mode='velocities')
+    plot_results(data, data_name, demo_idx, demo_length, dynamical_system, plot_mode='energy_levels')
 
 
 if __name__ == '__main__':
