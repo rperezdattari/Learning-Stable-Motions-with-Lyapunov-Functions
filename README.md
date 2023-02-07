@@ -19,4 +19,4 @@ Differently from this other repository, here we only focus on the method impleme
 
 ### Examples
 
-![alt text for screen readers](/images/example_energy_levels.png)
+![alt text for screen readers](/src/images/example_energy_levels.png)
