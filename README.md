@@ -43,3 +43,8 @@ In the folder `src` run:
 ```
 
 To change parameters or select a different shape modify the file `config.py`. 
+
+## Credits
+- Olalekan Ogunmolu
+- Rodrigo Pérez Dattari
+- Rachel Skye Thompson
