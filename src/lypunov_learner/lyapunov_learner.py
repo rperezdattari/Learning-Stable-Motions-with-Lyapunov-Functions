@@ -2,7 +2,6 @@ __credits__ = 'Olalekan Ogunmolu, Rodrigo Perez-Dattari (TU Delft), Rachel Thoms
 __license__ = 'MIT'
 
 import numpy as np
-import numpy.random as npr
 import scipy as sp
 import scipy.linalg as LA
 from scipy.optimize import minimize, NonlinearConstraint, BFGS
