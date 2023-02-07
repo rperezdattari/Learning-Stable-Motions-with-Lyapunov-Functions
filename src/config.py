@@ -3,35 +3,23 @@ __license__ = 'MIT'
 
 import numpy as np
 
-Vxf0 = {
-    'L': 1,
+general_params = {
+    'shape_name': 'PShape'
+}
+
+lyapunov_learner_params = {
+    'L': 3,  # number of lyapunov function components
     'd': 2,
-    'w': 1e-4, #A positive scalar weight regulating the priority between the two objectives of the opitmization. Please refer to the page 7 of the paper for further information.
+    'w': 1e-4,  # a positive scalar weight regulating the priority between the two objectives of the opitmization. Please refer to the page 7 of the paper for further information.
     'Mu': np.array(()),
     'P': np.array(()),
-    'SOS': False
-}
-
-options = {
     'tol_mat_bias': 1e-1,
-    'disp': True,
-    'use_6d': True,
-    'num_clusters': 10,  # number of gmm clusters
-    'tol_stopping': 1e-10,
-    'max_iter': 500,
     'int_lyap_random': False,
     'optimizePriors': True,
-    'upperBoundEigenValue': True,
+    'upperBoundEigenValue': True
 }
 
-opt_exec = {
-'dt': 0.1,
-'i_max': 4000,
-'tol': 1,
-'stop_tol': 1e-4,
-}
-
-
-hyperparams = {
-    'use_cvxopt': True, #whether to use cvxopt package, fmincon or otherwise
+gmm_params = {
+    'num_clusters': 10,
+    'max_iterations': 100
 }

@@ -18,10 +18,11 @@ class LyapunovLearner():
         self.Nfeval = 0
         self.success = True   # boolean indicating if constraints were violated
 
-    def guess_init_lyap(self, Vxf0, b_initRandom=False):
+    def guess_init_lyap(self, Vxf0):
         """
         This function guesses the initial lyapunov function
         """
+        b_initRandom = Vxf0['int_lyap_random']
         Vxf0['Mu'] = np.zeros((Vxf0['d'], Vxf0['L'] + 1))
         Vxf0['P'] = np.zeros((Vxf0['d'], Vxf0['d'], Vxf0['L'] + 1))
 
@@ -94,28 +95,17 @@ class LyapunovLearner():
     def ctr_eigenvalue_ineq(self, p, d, L, options):
         # This function computes the derivative of the constrains w.r.t.
         # optimization parameters.
-        Vxf = dict()
-        if L == -1:  # SOS
-            Vxf['d'] = d
-            Vxf['n'] = int(np.sqrt(len(p) / d ** 2))
-            Vxf['P'] = p.reshape(Vxf['n'] * d, Vxf['n'] * d)
-            Vxf['SOS'] = 1
-            c = np.zeros((Vxf['n'] * d, 1))
+        Vxf = shape_DS(p, d, L, options)
+        if L > 0:
+            c = np.zeros(((L + 1) * d + (L + 1) * options['optimizePriors'], 1))  # +options.variableSwitch
         else:
-            Vxf = shape_DS(p, d, L, options)
-            if L > 0:
-                c = np.zeros(((L + 1) * d + (L + 1) * options['optimizePriors'], 1))  # +options.variableSwitch
-            else:
-                c = np.zeros((d, 1))
+            c = np.zeros((d, 1))
 
-        if L == -1:  # SOS
-            c = -np.linalg.eigvals(Vxf['P'] + Vxf['P'].T - np.eye(Vxf['n'] * d) * options['tol_mat_bias'])
-        else:
-            for k in range(L + 1):
-                lambder = sp.linalg.eigvals(Vxf['P'][k, :, :] + (Vxf['P'][k, :, :]).T)
-                lambder = np.divide(lambder.real, 2.0)
-                lambder = np.expand_dims(lambder, axis=1)
-                c[k * d:(k + 1) * d] = -lambder.real + options['tol_mat_bias']
+        for k in range(L + 1):
+            lambder = sp.linalg.eigvals(Vxf['P'][k, :, :] + (Vxf['P'][k, :, :]).T)
+            lambder = np.divide(lambder.real, 2.0)
+            lambder = np.expand_dims(lambder, axis=1)
+            c[k * d:(k + 1) * d] = -lambder.real + options['tol_mat_bias']
 
         if L > 0 and options['optimizePriors']:
             c[(L + 1) * d:(L + 1) * d + L + 1] = np.reshape(-Vxf['Priors'], [L + 1, 1])
@@ -125,32 +115,21 @@ class LyapunovLearner():
     def ctr_eigenvalue_eq(self, p, d, L, options):
         # This function computes the derivative of the constrains w.r.t.
         # optimization parameters.
-        Vxf = dict()
-        if L == -1:  # SOS
-            Vxf['d'] = d
-            Vxf['n'] = int(np.sqrt(len(p) / d ** 2))
-            Vxf['P'] = p.reshape(Vxf['n'] * d, Vxf['n'] * d)
-            Vxf['SOS'] = 1
-            ceq = np.array(())
-        else:
-            Vxf = shape_DS(p, d, L, options)
-            if L > 0:
-                if options['upperBoundEigenValue']:
-                    ceq = np.zeros((L + 1, 1))
-                else:
-                    ceq = np.array(())  # zeros(L+1,1);
+        Vxf = shape_DS(p, d, L, options)
+        if L > 0:
+            if options['upperBoundEigenValue']:
+                ceq = np.zeros((L + 1, 1))
             else:
-                ceq = (np.ravel(Vxf['P']).T).dot(np.ravel(Vxf['P'])) - 2
-
-        if L == -1:  # SOS
-            pass
+                ceq = np.array(())  # zeros(L+1,1);
         else:
-            for k in range(L + 1):
-                lambder = sp.linalg.eigvals(Vxf['P'][k, :, :] + (Vxf['P'][k, :, :]).T)
-                lambder = np.divide(lambder.real, 2.0)
-                lambder = np.expand_dims(lambder, axis=1)
-                if options['upperBoundEigenValue']:
-                    ceq[k] = 1.0 - np.sum(lambder.real)  # + Vxf.P(:,:,k+1)'
+            ceq = (np.ravel(Vxf['P']).T).dot(np.ravel(Vxf['P'])) - 2
+
+        for k in range(L + 1):
+            lambder = sp.linalg.eigvals(Vxf['P'][k, :, :] + (Vxf['P'][k, :, :]).T)
+            lambder = np.divide(lambder.real, 2.0)
+            lambder = np.expand_dims(lambder, axis=1)
+            if options['upperBoundEigenValue']:
+                ceq[k] = 1.0 - np.sum(lambder.real)  # + Vxf.P(:,:,k+1)'
 
         return np.reshape(ceq, [len(ceq)])
 
@@ -215,24 +194,18 @@ class LyapunovLearner():
         xd = Data[d:, :]
 
         # Transform the Lyapunov model to a vector of optimization parameters
-        if Vxf0['SOS']:
-            p0 = npr.randn(d * Vxf0['n'], d * Vxf0['n'])
-            p0 = p0.dot(p0.T)
-            p0 = np.ravel(p0)
-            Vxf0['L'] = -1  # to distinguish sos from other methods
-        else:
-            for l in range(Vxf0['L']):
-                try:
-                    Vxf0['P'][l + 1, :, :] = sp.linalg.solve(Vxf0['P'][l + 1, :, :], sp.eye(d))
-                except sp.linalg.LinAlgError as e:
-                    print('Error lyapunov solver.')
+        for l in range(Vxf0['L']):
+            try:
+                Vxf0['P'][l + 1, :, :] = sp.linalg.solve(Vxf0['P'][l + 1, :, :], sp.eye(d))
+            except sp.linalg.LinAlgError as e:
+                print('Error lyapunov solver.')
 
-            # in order to set the first component to be the closest Gaussian to origin
-            to_sort = self.matVecNorm(Vxf0['Mu'])
-            idx = np.argsort(to_sort, kind='mergesort')
-            Vxf0['Mu'] = Vxf0['Mu'][:, idx]
-            Vxf0['P'] = Vxf0['P'][idx, :, :]
-            p0 = gmm_2_parameters(Vxf0, options)
+        # in order to set the first component to be the closest Gaussian to origin
+        to_sort = self.matVecNorm(Vxf0['Mu'])
+        idx = np.argsort(to_sort, kind='mergesort')
+        Vxf0['Mu'] = Vxf0['Mu'][:, idx]
+        Vxf0['P'] = Vxf0['P'][idx, :, :]
+        p0 = gmm_2_parameters(Vxf0, options)
 
         # account for targets in x and xd
         obj_handle = lambda p: self.obj(p, x, xd, d, Vxf0['L'], Vxf0['w'], options)
@@ -241,13 +214,12 @@ class LyapunovLearner():
 
         popt, J = self.optimize(obj_handle, ctr_handle_ineq, ctr_handle_eq, p0)
 
-
         # transforming back the optimization parameters into the GMM model
-        Vxf             = parameters_2_gmm(popt,d,Vxf0['L'],options)
-        Vxf['Mu'][:,0]  = 0
-        Vxf['L']        = Vxf0['L']
-        Vxf['d']        = Vxf0['d']
-        Vxf['w']        = Vxf0['w']
+        Vxf = parameters_2_gmm(popt,d,Vxf0['L'],options)
+        Vxf['Mu'][:, 0] = 0
+        Vxf['L'] = Vxf0['L']
+        Vxf['d'] = Vxf0['d']
+        Vxf['w'] = Vxf0['w']
         self.success = True
 
         sumDet = 0
@@ -260,7 +232,7 @@ class LyapunovLearner():
         return Vxf, J
 
     def energyContour(self, Vxf, D):
-        quality='low'
+        quality ='high'
         b_plot_contour = True
         contour_levels = np.array([])
 
@@ -271,8 +243,8 @@ class LyapunovLearner():
         else:
             nx, ny = 2, 2
 
-        x = np.arange(D[0], D[1], nx)
-        y = np.arange(D[2], D[3], ny)
+        x = np.arange(D[0][0], D[0][1], nx)
+        y = np.arange(D[1][0], D[1][1], ny)
         x_len = len(x)
         y_len = len(y)
         X, Y = np.meshgrid(x, y)
