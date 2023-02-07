@@ -1,40 +1,17 @@
-from __future__ import print_function
-
-__author__ 		= "Olalekan Ogunmolu"
-__copyright__ 	= "2018, One Hell of a Lyapunov Solver"
-__credits__  	= "Rachel Thomson (MIT), Jethro Tan (PFN)"
-__license__ 	= "MIT"
-__maintainer__ 	= "Olalekan Ogunmolu"
-__email__ 		= "patlekano@gmail.com"
-__status__ 		= "Testing"
+__credits__  	= 'Olalekan Ogunmolu, Rodrigo Perez-Dattari (TU Delft), Rachel Thomson (MIT), Jethro Tan (PFN)'
+__license__ 	= 'MIT'
 
 import os
-import sys
-# import argparse
-# import logging
 import numpy as np
 import scipy.io as sio
 import matplotlib.pyplot as plt
 
-from os.path import dirname, abspath
-lyap = dirname(dirname(abspath(__file__)))
-sys.path.append(lyap)
 
 from cost.cost import Cost
 from config import Vxf0, options
 from utils.utils import guess_init_lyap
 from stabilizer.ds_stab import dsStabilizer
 from gmm.gmm import GMM
-
-# logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
-# logger = logging.getLogger(__name__)
-#
-# parser = argparse.ArgumentParser(description='torobo_parser')
-# parser.add_argument('--silent', '-si', type=int, default=0, help='max num iterations' )
-# parser.add_argument('--data_type', '-dt', type=str, default='pipe_et_trumpet', help='pipe_et_trumpet | h5_data' )
-# args = parser.parse_args()
-#
-# print(args)
 
 
 def load_gmm_parameters(x):
@@ -44,21 +21,24 @@ def load_gmm_parameters(x):
     return Priors_EM, Mu_EM, Sigma_EM
 
 
+def simulate_trajectories(x_init, Vxf, rho0, kappa0, priors, mu, sigma, inp, output, cost, dt=0.01, trajectory_length=4000):
+    x_hist = [x_init]
+    dx_hist =[x_init * 0]
+    for i in range(trajectory_length):
+        dx = dsStabilizer(x_hist[i], Vxf, rho0, kappa0, priors, mu, sigma, inp, output, cost)[0]
+        x = x_hist[i] + dx * dt
+
+        x_hist.append(x)
+        dx_hist.append(dx)
+
+    return x_hist, dx_hist
+
+
 def load_saved_mat_file(data_name):
     """
         Loads a matlab file from a subdirectory.
-
-        Inputs:
-            x: path to data on HDD
-
-
-       Copyright (c) Lekan Molux. https://scriptedonachip.com
-       2021.
     """
 
-    # matFile = sio.loadmat(x)
-
-    # data = matFile['Data']
     dataset_path = 'data/lasa_handwriting_dataset'
     data = sio.loadmat(os.path.join(dataset_path, data_name + '.mat'))
     dataset = data['demos']
@@ -78,10 +58,8 @@ def load_saved_mat_file(data_name):
 
 
 def main(Vxf0, options):
-    modelNames = ['w.mat', 'Sshape.mat']  # Two example models provided by Khansari
-    modelNumber = 0  # could be zero or one depending on the experiment the user is running
-    data_name = 'Sshape'
-    data, demoIdx = load_saved_mat_file('Sshape')
+    data_name = 'PShape'
+    data, demoIdx = load_saved_mat_file(data_name)
 
     Vxf0['d'] = int(data.shape[0]/2)
     Vxf0.update(Vxf0)
@@ -89,34 +67,33 @@ def main(Vxf0, options):
     Vxf0 = guess_init_lyap(data, Vxf0, options['int_lyap_random'])
     cost = Cost()
 
-    # cost.success = False
     while cost.success:
-        # cost.success = False
         print('Optimizing the lyapunov function')
         Vxf, J = cost.learnEnergy(Vxf0, data, options)
-        # if not cost.success:
-        # increase L and restart the optimization process
-        old_l = Vxf0['L']
-        Vxf0['L'] += 1
-        print('Constraints violated. increasing the size of L from {} --> {}'.format(old_l, Vxf0['L']))
         if cost.success:
             print('optimization succeeded without violating constraints')
             break
 
-    # Plot the result of V
-    #h1 = plt.plot(data[0, :], data[1, :], 'r.', label='demonstrations')
+    extra = 10
 
-    extra = 30
+    x_lim = [[np.min(data[0, :]) - extra, np.max(data[0, :]) + extra],
+                   [np.min(data[1, :]) - extra, np.max(data[1, :]) + extra]]
 
-    axes_limits = [np.min(data[0, :]) - extra, np.max(data[0, :]) + extra,
-                   np.min(data[1, :]) - extra, np.max(data[1, :]) + extra]
+    # x_lim = [[0, 0], [0, 0]]
+    # x_lim[0][0] = -15.1  # S: -15.1; P:-32.22; DB:-41.03
+    # x_lim[0][1] = 51.4  # S: 51.4; P: 28.51; DB: 24.37
+    # x_lim[1][0] = -7.73  # S: -7.73; P: -28.16; DB: -22.71
+    # x_lim[1][1] = 56  # S: 56; P: 37.43; DB: 9.45
 
-    h3 = cost.energyContour(Vxf, axes_limits, np.array(()), np.array(()), np.array(()), False)
-    h2 = plt.plot(0, 0, 'g*', markersize=15, linewidth=3, label='target')
-    plt.title('Energy Levels of the learned Lyapunov Functions', fontsize=12)
-    plt.xlabel('x (mm)', fontsize=15)
-    plt.ylabel('y (mm)', fontsize=15)
-    #h = [h1, h2, h3]
+    # h3 = cost.energyContour(Vxf, axes_limits, np.array(()), np.array(()), np.array(()), False)
+    # h2 = plt.plot(0, 0, 'g*', markersize=15, linewidth=3, label='target')
+    plt.rcdefaults()
+    plt.rcParams.update({"text.usetex": True, "font.family": "Times New Roman", "font.size": 26})
+    plt.figure(figsize=(8, 8))
+
+    plt.title('Lyapunov Learning (CLF-DM GMR) ')
+    plt.xlabel('x (mm)')
+    plt.ylabel('y (mm)')
 
     # Run DS
     opt_sim = dict()
@@ -135,7 +112,6 @@ def main(Vxf0, options):
     sigma = sigma.T
     priors = priors.T
 
-    #Priors_EM, Mu_EM, Sigma_EM = load_gmm_parameters(lyap + '/' + 'example_models/' + modelNames[modelNumber])
 
     # rho0 and kappa0 impose minimum acceptable rate of decrease in the energy
     # function during the motion. Refer to page 8 of the paper for more information
@@ -147,52 +123,69 @@ def main(Vxf0, options):
 
     xd, _ = dsStabilizer(x0_all, Vxf, rho0, kappa0, priors, mu, sigma, inp, output, cost)
 
-    # Evalute DS
-    xT = np.array([])
-    d = x0_all.shape[0]  # dimension of the model
-    if not xT:
-        xT = np.zeros((d, 1))
-
     # Simulate trajectories
-    nbSPoint = x0_all.shape[1]
-    x = []
-    x.append(x0_all)
-    xd = []
-    if xT.shape == x0_all.shape:
-        XT = xT
-    else:
-        XT = np.tile(xT, [1, nbSPoint])   # a matrix of target location (just to simplify computation)
-
-    t = 0  # starting time
-    dt = 0.01
-    for i in range(4000):
-        xd.append(dsStabilizer(x[i] - XT, Vxf, rho0, kappa0, priors, mu, sigma, inp, output, cost)[0])
-
-        x.append(x[i] + xd[i] * dt)
-        t += dt
+    x_sim, _ = simulate_trajectories(x0_all, Vxf, rho0, kappa0, priors, mu, sigma, inp, output, cost, trajectory_length=1500)
 
     # Plot simulated data
-    x = np.array(x)
-    plt.plot(x[:, 0, :], x[:, 1, :], color='red', linewidth=4, zorder=10)
+    x_sim = np.array(x_sim)
+    plt.plot(x_sim[:, 0, :], x_sim[:, 1, :], color='red', linewidth=4, zorder=10)
 
 
     # Plot demonstrations
     demo_length = 1000
     for i in range(int(data.shape[1] / demo_length)):
-        plt.plot(data[0, i * demo_length:(i + 1) * demo_length], data[1, i * demo_length:(i + 1) * demo_length],
-                 color='blue', linewidth=4, zorder=5)
+        plt.scatter(data[0, i * demo_length:(i + 1) * demo_length], data[1, i * demo_length:(i + 1) * demo_length],
+                 color='white', zorder=5, alpha=0.5)
 
-    plt.legend()
+    # Get velocities
+    n_points = 100
+
+    x1_coords, x2_coords = np.meshgrid(
+        np.linspace(x_lim[0][0], x_lim[0][1], n_points),
+        np.linspace(x_lim[1][0], x_lim[1][1], n_points))
+
+    x_init = np.zeros([2, n_points ** 2])
+    x_init[0, :] = x1_coords.reshape(-1)
+    x_init[1, :] = x2_coords.reshape(-1)
+    dx_hist = []
+    for i in range(n_points ** 2):
+        print(i)
+        x, dx = simulate_trajectories(x_init[:, i].reshape(-1, 1), Vxf, rho0, kappa0, priors, mu, sigma, inp, output, cost, trajectory_length=1)
+        dx_hist.append(dx[1])
+
+    dx_hist = np.array(dx_hist)[:, :, 0]
+
+    vel = dx_hist.reshape(n_points, n_points, -1)
+    norm_vel = np.clip(np.linalg.norm(vel, axis=2), a_min=0, a_max=50)
+    cmap = plt.cm.Greys
+    color = 'black'
+    plt.streamplot(
+        x1_coords, x2_coords,
+        vel[:, :, 0], vel[:, :, 1],
+        color=color, cmap=cmap, linewidth=0.5,
+        density=2, arrowstyle='fancy', arrowsize=1, zorder=2
+    )
+
+    CS = plt.contourf(x1_coords, x2_coords, norm_vel, cmap='viridis', levels=50, zorder=1)
+
+    min_vel_ceil = np.ceil(np.min(norm_vel))
+    max_vel_floor = np.ceil(np.max(norm_vel))
+    delta_x = max_vel_floor / 10
+    cbar = plt.colorbar(CS, location='bottom', ticks=np.arange(min_vel_ceil, max_vel_floor, delta_x))
+    cbar.ax.set_xlabel('speed (mm/s)')
+
+    plt.scatter(x_sim[-1, 0, 0], x_sim[-1, 1, 0], linewidth=4, color='blue', zorder=13)
+
+    plt.xlim(x_lim[0])
+    plt.ylim(x_lim[1])
+    plt.tight_layout()
     plt.savefig('%s_vector_field.pdf' % data_name, dpi=300)
     plt.show()
 
 
 if __name__ == '__main__':
         global options
-        # options = BundleType(options)
-        # A set of options that will be passed to the solver
         options['disp'] = 0
-        #options['args'] = args
 
         options.update()
 

@@ -61,7 +61,7 @@ class Cost(object):
         return J
 
     def callback_opt(self, Xi, y):
-        print('Iteration: {0:4d}   Cost: {1: 3.6f}'.format(self.Nfeval, y.fun[0]))
+        print('Iteration: {0:4d}   Cost: {1: 3.6f}'.format(self.Nfeval, y.fun))
         self.Nfeval += 1
 
     def optimize(self, obj_handle, ctr_handle_ineq, ctr_handle_eq, p0):

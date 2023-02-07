@@ -69,7 +69,7 @@ def GMR(Priors, Mu, Sigma, x, inp, out, nargout=0):
     return y, Sigma_y, beta
 
 
-def dsStabilizer(x, Vxf, rho0, kappa0, Priors_EM, Mu_EM, Sigma_EM, inp, output, cost, *args):
+def dsStabilizer(x, Vxf, rho0, kappa0, Priors_EM, Mu_EM, Sigma_EM, inp, output, cost):
     d = Vxf['d']
     if x.shape[0] == 2*d:
         xd = x[d+1:2*d, :]
